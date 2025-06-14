@@ -7,9 +7,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install system dependencies required for building certain Python packages
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-    gcc git \
+    gcc g++ git make \
     libmagic-dev \
     ffmpeg \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container to /app
@@ -20,8 +21,15 @@ COPY . /app
 RUN uv sync
 
 
-EXPOSE 8502
+# Expose ports for Streamlit and API
+EXPOSE 8502 5000
 
 RUN mkdir -p /app/data
 
-CMD ["uv", "run", "streamlit", "run", "app_home.py"]
+# Copy supervisord configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create log directories
+RUN mkdir -p /var/log/supervisor
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

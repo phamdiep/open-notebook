@@ -1,4 +1,4 @@
-.PHONY: run check ruff database lint docker-build docker-push docker-buildx-prepare docker-release
+.PHONY: run check ruff database lint docker-build docker-push docker-buildx-prepare docker-release api
 
 # Get version from pyproject.toml
 VERSION := $(shell grep -m1 version pyproject.toml | cut -d'"' -f2)
@@ -7,7 +7,7 @@ IMAGE_NAME := lfnovo/open_notebook
 PLATFORMS=linux/amd64,linux/arm64
 
 database:
-	docker compose --profile db_only up
+	docker compose up -d surrealdb
 
 run:
 	uv run --env-file .env streamlit run app_home.py
@@ -59,3 +59,7 @@ dev:
 
 full:
 	docker compose -f docker-compose.full.yml up --build 
+
+
+api:
+	uv run run_api.py
