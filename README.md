@@ -158,15 +158,20 @@ uv pip install python-magic
 Start the SurrealDB database first:
 
 ```bash
-docker compose --profile db_only up -d
+docker compose up -d surrealdb
 ```
 
-Then run the Streamlit application:
+Then run the application:
 
 ```bash
-# Load environment variables from .env file and run the app
+# Start the FastAPI backend
+uv run --env-file .env uvicorn api.main:app --host 0.0.0.0 --port 5000
+
+# In another terminal, start Streamlit 
 uv run --env-file .env streamlit run app_home.py
 ```
+
+The API will be available at `http://localhost:5000` and provides comprehensive REST endpoints for all Open Notebook functionality. The Streamlit interface requires the API to be running.
 
 ## Provider Support Matrix
 
@@ -215,8 +220,30 @@ uv run --env-file .env streamlit run app_home.py --server.port=8503
 If you don't want to mess around with the code and just want to run it as a docker image:
 
 ```bash
+# Run the full stack (SurrealDB + Streamlit + API)
 docker compose --profile multi up
 ```
+
+The Docker setup now includes both the Streamlit interface and the REST API:
+- **Streamlit UI**: `http://localhost:8502`
+- **REST API**: `http://localhost:5000`
+- **API Documentation**: `http://localhost:5000/docs` (Interactive Swagger UI)
+
+### API Documentation
+
+Open Notebook now includes a comprehensive REST API that provides programmatic access to all functionality. The API includes endpoints for:
+
+- **Notebooks**: Create, read, update, delete notebooks
+- **Sources**: Manage research sources (links, files, text)
+- **Notes**: Create and manage notes
+- **Search**: Full-text and vector search capabilities
+- **Models**: Manage AI models and providers
+- **Transformations**: Execute content transformations
+- **Settings**: Application configuration
+- **Context**: Generate context for AI interactions
+- **Embedding**: Vectorize content for search
+
+Visit `http://localhost:5000/docs` when the API is running to explore the interactive API documentation.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -230,6 +257,7 @@ Go to the [Usage](docs/USAGE.md) page to learn how to use all features.
 
 - **Multi-Notebook Support**: Organize your research across multiple notebooks effortlessly.
 - **Multi-model support**: Open AI, Anthropic, Gemini, Vertex AI, Open Router, X.AI, Groq, Ollama. ([Model Selection Guide](https://github.com/lfnovo/open-notebook/blob/main/docs/models.md))
+- **Comprehensive REST API**: Full programmatic access to all functionality for building custom integrations.
 - **Podcast Generator**: Automatically convert your notes into a podcast format.
 - **Broad Content Integration**: Works with links, PDFs, EPUB, Office, TXT, Markdown files, YouTube videos, Audio files, Video files and pasted text.
 - **Content Transformation**: Powerful customizable actions to summarize, extract insights, and more.
@@ -274,10 +302,12 @@ Jinja based prompts that are easy to customize to your own preferences.
 <!-- ROADMAP -->
 ## Roadmap
 
+- [ ] **React Frontend**: Modern React-based frontend to replace Streamlit.
 - [ ] **Live Front-End Updates**: Real-time UI updates for a smoother experience.
 - [ ] **Async Processing**: Faster UI through asynchronous content processing.
 - [ ] **Cross-Notebook Sources and Notes**: Reuse research notes across projects.
 - [ ] **Bookmark Integration**: Integrate with your favorite bookmarking app.
+- ✅ **Comprehensive REST API**: Full API coverage for all functionality.
 - ✅ **Multi-model support**: Open AI, Anthropic, Vertex AI, Open Router, Ollama, etc.
 - ✅ **Insight Generation**: New tools for creating insights - [transformations](docs/TRANSFORMATIONS.md)
 - ✅ **Podcast Generator**: Automatically convert your notes into a podcast format. 
