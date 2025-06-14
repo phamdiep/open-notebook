@@ -27,11 +27,20 @@ def note_panel(note_id, notebook_id=None):
         b1, b2 = st.columns(2)
         if b1.button("Save", key=f"pn_edit_note_{note.id or 'new'}"):
             logger.debug("Editing note")
-            note.save()
-            if not note.id and notebook_id:
-                note.add_to_notebook(notebook_id)
+            from api.notes_service import notes_service
+            if note.id:
+                notes_service.update_note(note)
+            else:
+                note = notes_service.create_note(
+                    content=note.content,
+                    title=note.title,
+                    note_type=note.note_type,
+                    notebook_id=notebook_id
+                )
             st.rerun()
     if b2.button("Delete", type="primary", key=f"delete_note_{note.id or 'new'}"):
         logger.debug("Deleting note")
-        note.delete()
+        from api.notes_service import notes_service
+        if note.id:
+            notes_service.delete_note(note.id)
         st.rerun()

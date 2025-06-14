@@ -22,8 +22,9 @@ def source_panel(source_id: str, notebook_id=None, modal=False):
     current_title = source.title if source.title else "No Title"
     source.title = st.text_input("Title", value=current_title)
     if source.title != current_title:
+        from api.sources_service import sources_service
+        sources_service.update_source(source)
         st.toast("Saved new Title")
-        source.save()
 
     process_tab, source_tab = st.tabs(["Process", "Source"])
     with process_tab:
@@ -53,7 +54,13 @@ def source_panel(source_id: str, notebook_id=None, modal=False):
                         if x2.button(
                             "Save as Note", icon="📝", key=f"save_note_{insight.id}"
                         ):
-                            insight.save_as_note(notebook_id)
+                            from api.notes_service import notes_service
+                            notes_service.create_note(
+                                content=insight.content,
+                                title=f"{insight.insight_type} from source {source.title}",
+                                note_type="ai",
+                                notebook_id=notebook_id
+                            )
                             st.toast("Saved as Note. Refresh the Notebook to see it.")
 
         with c2:
@@ -92,8 +99,9 @@ def source_panel(source_id: str, notebook_id=None, modal=False):
                 help=help,
                 disabled=model_manager.embedding_model is None,
             ):
-                source.vectorize()
-                st.success("Embedding complete")
+                from api.embedding_service import embedding_service
+                result = embedding_service.embed_content(source.id, "source")
+                st.success(result.get("message", "Embedding complete"))
 
             with st.container(border=True):
                 st.caption(
@@ -102,7 +110,8 @@ def source_panel(source_id: str, notebook_id=None, modal=False):
                 if st.button(
                     "Delete", type="primary", key=f"bt_delete_source_{source.id}"
                 ):
-                    source.delete()
+                    from api.sources_service import sources_service
+                    sources_service.delete_source(source.id)
                     st.rerun()
 
     with source_tab:

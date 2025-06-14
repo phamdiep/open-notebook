@@ -19,8 +19,11 @@ from .note import make_note_from_chat
 
 # todo: build a smarter, more robust context manager function
 def build_context(notebook_id):
-    st.session_state[notebook_id]["context"] = dict(note=[], source=[])
-
+    from api.context_service import context_service
+    
+    # Convert context_config format for API
+    context_config = {"sources": {}, "notes": {}}
+    
     for id, status in st.session_state[notebook_id]["context_config"].items():
         if not id:
             continue
@@ -29,23 +32,23 @@ def build_context(notebook_id):
         if item_type not in ["note", "source"]:
             continue
 
-        if "not in" in status:
-            continue
-
-        try:
-            item: Union[Note, Source] = ObjectModel.get(id)
-        except Exception:
-            continue
-
-        if "insights" in status:
-            st.session_state[notebook_id]["context"][item_type] += [
-                item.get_context(context_size="short")
-            ]
-        elif "full content" in status:
-            st.session_state[notebook_id]["context"][item_type] += [
-                item.get_context(context_size="long")
-            ]
-
+        if item_type == "source":
+            context_config["sources"][item_id] = status
+        elif item_type == "note":
+            context_config["notes"][item_id] = status
+    
+    # Get context via API
+    result = context_service.get_notebook_context(
+        notebook_id=notebook_id,
+        context_config=context_config
+    )
+    
+    # Store in session state for compatibility
+    st.session_state[notebook_id]["context"] = {
+        "note": result["notes"],
+        "source": result["sources"]
+    }
+    
     return st.session_state[notebook_id]["context"]
 
 

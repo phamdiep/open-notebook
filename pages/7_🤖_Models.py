@@ -3,6 +3,7 @@ import os
 import streamlit as st
 from esperanto import AIFactory
 
+from api.models_service import models_service
 from open_notebook.domain.models import DefaultModels, Model, model_manager
 from pages.components.model_selector import model_selector
 from pages.stream_app.utils import setup_page
@@ -57,8 +58,8 @@ def check_available_providers():
     return available_providers, unavailable_providers
 
 
-default_models = DefaultModels()
-all_models = Model.get_all()
+default_models = models_service.get_default_models()
+all_models = models_service.get_all_models()
 esperanto_available_providers = AIFactory.get_available_providers()
 
 
@@ -106,8 +107,11 @@ def add_model_form(model_type, container_key):
 
         if st.form_submit_button("Add Model"):
             if model_name:
-                model = Model(name=model_name, provider=provider, type=model_type)
-                model.save()
+                models_service.create_model(
+                    name=model_name, 
+                    provider=provider, 
+                    model_type=model_type
+                )
                 st.success("Model added!")
                 st.rerun()
 
@@ -126,12 +130,12 @@ def handle_default_selection(
     # Auto-save when selection changes
     if selected_model and (not current_value or selected_model.id != current_value):
         setattr(default_models, key, selected_model.id)
-        default_models.update()
+        models_service.update_default_models(default_models)
         model_manager.refresh_defaults()
         st.toast(f"Default {model_type} model set to {selected_model.name}")
     elif not selected_model and current_value:
         setattr(default_models, key, None)
-        default_models.update()
+        models_service.update_default_models(default_models)
         model_manager.refresh_defaults()
         st.toast(f"Default {model_type} model removed")
 
@@ -175,7 +179,7 @@ with st.container(border=True):
                     if st.button(
                         "🗑️", key=f"delete_lang_{model.id}", help="Delete model"
                     ):
-                        model.delete()
+                        models_service.delete_model(model.id)
                         st.rerun()
         else:
             st.info("No language models configured")
@@ -241,7 +245,7 @@ with st.container(border=True):
                     if st.button(
                         "🗑️", key=f"delete_emb_{model.id}", help="Delete model"
                     ):
-                        model.delete()
+                        models_service.delete_model(model.id)
                         st.rerun()
         else:
             st.info("No embedding models configured")
@@ -275,7 +279,7 @@ with st.container(border=True):
                     if st.button(
                         "🗑️", key=f"delete_tts_{model.id}", help="Delete model"
                     ):
-                        model.delete()
+                        models_service.delete_model(model.id)
                         st.rerun()
         else:
             st.info("No text-to-speech models configured")
@@ -309,7 +313,7 @@ with st.container(border=True):
                     if st.button(
                         "🗑️", key=f"delete_stt_{model.id}", help="Delete model"
                     ):
-                        model.delete()
+                        models_service.delete_model(model.id)
                         st.rerun()
         else:
             st.info("No speech-to-text models configured")

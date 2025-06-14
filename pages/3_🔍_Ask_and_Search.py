@@ -1,15 +1,10 @@
-import asyncio
-
-import nest_asyncio
 import streamlit as st
 
+from api.search_service import search_service
 from open_notebook.domain.models import DefaultModels, model_manager
-from open_notebook.domain.notebook import Note, Notebook, text_search, vector_search
-from open_notebook.graphs.ask import graph as ask_graph
+from open_notebook.domain.notebook import Note, Notebook
 from pages.components.model_selector import model_selector
 from pages.stream_app.utils import convert_source_references, setup_page
-
-nest_asyncio.apply()
 
 setup_page("🔍 Search")
 
@@ -22,21 +17,6 @@ if "ask_results" not in st.session_state:
     st.session_state["ask_results"] = {}
 
 
-async def process_ask_query(question, strategy_model, answer_model, final_answer_model):
-    async for chunk in ask_graph.astream(
-        input=dict(
-            question=question,
-        ),
-        config=dict(
-            configurable=dict(
-                strategy_model=strategy_model.id,
-                answer_model=answer_model.id,
-                final_answer_model=final_answer_model.id,
-            )
-        ),
-        stream_mode="updates",
-    ):
-        yield (chunk)
 
 
 def results_card(item):
@@ -86,38 +66,30 @@ with ask_tab:
     ask_bt = st.button("Ask") if model_manager.embedding_model else None
     placeholder = st.container()
 
-    async def stream_results():
-        async for chunk in process_ask_query(
-            question, strategy_model, answer_model, final_answer_model
-        ):
-            if "agent" in chunk:
-                with placeholder.expander(
-                    f"Agent Strategy: {chunk['agent']['strategy'].reasoning}"
-                ):
-                    for search in chunk["agent"]["strategy"].searches:
-                        st.markdown(f"Searched for: **{search.term}**")
-                        st.markdown(f"Instructions: {search.instructions}")
-            elif "provide_answer" in chunk:
-                for answer in chunk["provide_answer"]["answers"]:
-                    with placeholder.expander("Answer"):
-                        st.markdown(convert_source_references(answer))
-            elif "write_final_answer" in chunk:
-                st.session_state["ask_results"]["answer"] = chunk["write_final_answer"][
-                    "final_answer"
-                ]
-                with placeholder.container(border=True):
-                    st.markdown(
-                        convert_source_references(
-                            chunk["write_final_answer"]["final_answer"]
-                        )
-                    )
 
     if ask_bt:
         placeholder.write(f"Searching for {question}")
         st.session_state["ask_results"]["question"] = question
         st.session_state["ask_results"]["answer"] = None
-
-        asyncio.run(stream_results())
+        
+        with st.spinner("Processing your question..."):
+            try:
+                result = search_service.ask_knowledge_base(
+                    question=question,
+                    strategy_model=strategy_model.id,
+                    answer_model=answer_model.id,
+                    final_answer_model=final_answer_model.id
+                )
+                
+                if result.get("answer"):
+                    st.session_state["ask_results"]["answer"] = result["answer"]
+                    with placeholder.container(border=True):
+                        st.markdown(convert_source_references(result["answer"]))
+                else:
+                    placeholder.error("No answer generated")
+                    
+            except Exception as e:
+                placeholder.error(f"Error processing question: {str(e)}")
 
     if st.session_state["ask_results"].get("answer"):
         with st.container(border=True):
@@ -150,15 +122,14 @@ with search_tab:
         search_sources = st.checkbox("Search Sources", value=True)
         search_notes = st.checkbox("Search Notes", value=True)
         if st.button("Search"):
-            if search_type == "Text Search":
-                st.write(f"Searching for {search_term}")
-                st.session_state["search_results"] = text_search(
-                    search_term, 100, search_sources, search_notes
-                )
-            elif search_type == "Vector Search":
-                st.write(f"Searching for {search_term}")
-                st.session_state["search_results"] = vector_search(
-                    search_term, 100, search_sources, search_notes
-                )
+            st.write(f"Searching for {search_term}")
+            search_type_api = "text" if search_type == "Text Search" else "vector"
+            st.session_state["search_results"] = search_service.search(
+                query=search_term,
+                search_type=search_type_api,
+                limit=100,
+                search_sources=search_sources,
+                search_notes=search_notes
+            )
         for item in st.session_state["search_results"]:
             results_card(item)

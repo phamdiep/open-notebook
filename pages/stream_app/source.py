@@ -97,16 +97,37 @@ def add_source(notebook_id):
                     with open(new_path, "wb") as f:
                         f.write(source_file.getbuffer())
 
-                asyncio.run(
-                    source_graph.ainvoke(
-                        {
-                            "content_state": req,
-                            "notebook_id": notebook_id,
-                            "apply_transformations": apply_transformations,
-                            "embed": run_embed,
-                        }
+                from api.sources_service import sources_service
+                
+                # Convert transformations to IDs
+                transformation_ids = [t.id for t in apply_transformations] if apply_transformations else []
+                
+                # Determine source type and parameters
+                if source_type == "Link":
+                    sources_service.create_source(
+                        notebook_id=notebook_id,
+                        source_type="link",
+                        url=source_link,
+                        transformations=transformation_ids,
+                        embed=run_embed
                     )
-                )
+                elif source_type == "Upload":
+                    sources_service.create_source(
+                        notebook_id=notebook_id,
+                        source_type="upload",
+                        file_path=req["file_path"],
+                        transformations=transformation_ids,
+                        embed=run_embed,
+                        delete_source=req.get("delete_source", False)
+                    )
+                else:  # Text
+                    sources_service.create_source(
+                        notebook_id=notebook_id,
+                        source_type="text",
+                        content=source_text,
+                        transformations=transformation_ids,
+                        embed=run_embed
+                    )
             except UnsupportedTypeException as e:
                 st.warning(
                     "This type of content is not supported yet. If you think it should be, let us know on the project Issues's page"
